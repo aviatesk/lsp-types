@@ -384,6 +384,77 @@ impl From<&'static str> for PositionEncodingKind {
     }
 }
 
+/// The message of a diagnostic.
+///
+/// @since 3.18.0 - support for `MarkupContent`. This is guarded by the client
+/// capability `textDocument.diagnostic.markupMessageSupport`.
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum DiagnosticMessage {
+    String(String),
+    MarkupContent(MarkupContent),
+}
+
+impl DiagnosticMessage {
+    /// Returns the raw text of the message, regardless of its markup kind.
+    pub fn as_str(&self) -> &str {
+        match self {
+            DiagnosticMessage::String(message) => message,
+            DiagnosticMessage::MarkupContent(markup) => &markup.value,
+        }
+    }
+
+    /// Returns the raw text of the message, regardless of its markup kind.
+    pub fn as_mut_string(&mut self) -> &mut String {
+        match self {
+            DiagnosticMessage::String(message) => message,
+            DiagnosticMessage::MarkupContent(markup) => &mut markup.value,
+        }
+    }
+}
+
+impl Default for DiagnosticMessage {
+    fn default() -> Self {
+        DiagnosticMessage::String(String::new())
+    }
+}
+
+impl From<String> for DiagnosticMessage {
+    fn from(message: String) -> Self {
+        DiagnosticMessage::String(message)
+    }
+}
+
+impl From<&str> for DiagnosticMessage {
+    fn from(message: &str) -> Self {
+        DiagnosticMessage::String(message.to_owned())
+    }
+}
+
+impl From<MarkupContent> for DiagnosticMessage {
+    fn from(markup: MarkupContent) -> Self {
+        DiagnosticMessage::MarkupContent(markup)
+    }
+}
+
+impl PartialEq<str> for DiagnosticMessage {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for DiagnosticMessage {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+impl std::fmt::Display for DiagnosticMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Represents a diagnostic, such as a compiler error or warning.
 /// Diagnostic objects are only valid in the scope of a resource.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -413,7 +484,10 @@ pub struct Diagnostic {
     pub source: Option<String>,
 
     /// The diagnostic's message.
-    pub message: String,
+    ///
+    /// @since 3.18.0 - support for `MarkupContent`. This is guarded by the client
+    /// capability `textDocument.diagnostic.markupMessageSupport`.
+    pub message: DiagnosticMessage,
 
     /// An array of related diagnostic information, e.g. when symbol-names within
     /// a scope collide all definitions can be marked via this property.
@@ -469,7 +543,7 @@ impl Diagnostic {
             severity,
             code,
             source,
-            message,
+            message: message.into(),
             related_information,
             tags,
             ..Diagnostic::default()
@@ -2679,9 +2753,11 @@ pub enum Documentation {
 ///
 /// The pair of a language and a value is an equivalent to markdown:
 ///
+/// ``````
 /// ```${language}
 /// ${value}
 /// ```
+/// ``````
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum MarkedString {
