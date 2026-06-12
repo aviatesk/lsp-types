@@ -187,6 +187,9 @@ pub use semantic_tokens::*;
 mod signature_help;
 pub use signature_help::*;
 
+mod text_document_content;
+pub use text_document_content::*;
+
 mod type_hierarchy;
 pub use type_hierarchy::*;
 
@@ -1537,6 +1540,12 @@ pub struct WorkspaceClientCapabilities {
     /// since 3.17.0
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostics: Option<DiagnosticWorkspaceClientCapabilities>,
+
+    /// Capabilities specific to the `workspace/textDocumentContent` request.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_document_content: Option<TextDocumentContentClientCapabilities>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -2251,6 +2260,12 @@ pub struct WorkspaceServerCapabilities {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_operations: Option<WorkspaceFileOperationsServerCapabilities>,
+
+    /// The server supports the `workspace/textDocumentContent` request.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_document_content: Option<TextDocumentContentServerCapabilities>,
 }
 
 /// General parameters to to register for a capability.

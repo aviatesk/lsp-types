@@ -171,6 +171,12 @@ macro_rules! lsp_request {
     ("workspace/diagnostic/refresh") => {
         $crate::request::WorkspaceDiagnosticRefresh
     };
+    ("workspace/textDocumentContent") => {
+        $crate::request::TextDocumentContentRequest
+    };
+    ("workspace/textDocumentContent/refresh") => {
+        $crate::request::TextDocumentContentRefreshRequest
+    };
     ("typeHierarchy/supertypes") => {
         $crate::request::TypeHierarchySupertypes
     };
@@ -929,6 +935,26 @@ impl Request for WorkspaceDiagnosticRefresh {
     const METHOD: &'static str = "workspace/diagnostic/refresh";
 }
 
+/// The `workspace/textDocumentContent` request is sent from the client to the server to dynamically fetch the content of a text document.
+#[derive(Debug)]
+pub enum TextDocumentContentRequest {}
+
+impl Request for TextDocumentContentRequest {
+    type Params = TextDocumentContentParams;
+    type Result = TextDocumentContentResult;
+    const METHOD: &'static str = "workspace/textDocumentContent";
+}
+
+/// The `workspace/textDocumentContent/refresh` request is sent from the server to the client to refresh the content of a specific text document.
+#[derive(Debug)]
+pub enum TextDocumentContentRefreshRequest {}
+
+impl Request for TextDocumentContentRefreshRequest {
+    type Params = TextDocumentContentRefreshParams;
+    type Result = ();
+    const METHOD: &'static str = "workspace/textDocumentContent/refresh";
+}
+
 /// The type hierarchy request is sent from the client to the server to return a type hierarchy for
 /// the language element of given text document positions. Will return null if the server couldn’t
 /// infer a valid type from the position. The type hierarchy requests are executed in two steps:
@@ -1041,6 +1067,8 @@ mod test {
         check_macro!("workspace/configuration");
         check_macro!("workspace/diagnostic");
         check_macro!("workspace/diagnostic/refresh");
+        check_macro!("workspace/textDocumentContent");
+        check_macro!("workspace/textDocumentContent/refresh");
         check_macro!("workspace/willCreateFiles");
         check_macro!("workspace/willRenameFiles");
         check_macro!("workspace/willDeleteFiles");
