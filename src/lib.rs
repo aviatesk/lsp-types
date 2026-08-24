@@ -404,7 +404,7 @@ impl DiagnosticMessage {
         }
     }
 
-    /// Returns the raw text of the message, regardless of its markup kind.
+    /// Returns a mutable reference to the raw text of the message, regardless of its markup kind.
     pub fn as_mut_string(&mut self) -> &mut String {
         match self {
             DiagnosticMessage::String(message) => message,
@@ -434,18 +434,6 @@ impl From<&str> for DiagnosticMessage {
 impl From<MarkupContent> for DiagnosticMessage {
     fn from(markup: MarkupContent) -> Self {
         DiagnosticMessage::MarkupContent(markup)
-    }
-}
-
-impl PartialEq<str> for DiagnosticMessage {
-    fn eq(&self, other: &str) -> bool {
-        self.as_str() == other
-    }
-}
-
-impl PartialEq<&str> for DiagnosticMessage {
-    fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
     }
 }
 
@@ -2753,7 +2741,7 @@ pub enum Documentation {
 ///
 /// The pair of a language and a value is an equivalent to markdown:
 ///
-/// ``````
+/// ``````text
 /// ```${language}
 /// ${value}
 /// ```
@@ -2984,6 +2972,27 @@ mod tests {
         test_serialization(&NumberOrString::Number(123), r#"123"#);
 
         test_serialization(&NumberOrString::String("abcd".into()), r#""abcd""#);
+    }
+
+    #[test]
+    fn diagnostic_message() {
+        test_serialization(&DiagnosticMessage::String("message".into()), r#""message""#);
+
+        test_serialization(
+            &DiagnosticMessage::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "**message**".into(),
+            }),
+            r#"{"kind":"markdown","value":"**message**"}"#,
+        );
+
+        test_serialization(
+            &DiagnosticMessage::MarkupContent(MarkupContent {
+                kind: MarkupKind::PlainText,
+                value: "message".into(),
+            }),
+            r#"{"kind":"plaintext","value":"message"}"#,
+        );
     }
 
     #[test]
