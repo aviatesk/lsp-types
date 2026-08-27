@@ -1210,14 +1210,38 @@ impl TextDocumentPositionParams {
     }
 }
 
-/// A document filter denotes a document through properties like language, schema or pattern.
-/// Examples are a filter that applies to TypeScript files on disk or a filter the applies to JSON
-/// files with name package.json:
+/// A document filter denotes either a text document or a notebook cell text document.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum DocumentFilter {
+    // This variant must precede `Text`: all fields in `TextDocumentFilter` are optional,
+    // so serde would otherwise accept notebook filters after discarding `notebook`.
+    NotebookCell(NotebookCellTextDocumentFilter),
+    Text(TextDocumentFilter),
+}
+
+impl From<NotebookCellTextDocumentFilter> for DocumentFilter {
+    fn from(filter: NotebookCellTextDocumentFilter) -> Self {
+        Self::NotebookCell(filter)
+    }
+}
+
+impl From<TextDocumentFilter> for DocumentFilter {
+    fn from(filter: TextDocumentFilter) -> Self {
+        Self::Text(filter)
+    }
+}
+
+/// A text document filter denotes a document through properties like language, scheme, or pattern.
+/// Examples are a filter that applies to TypeScript files on disk or a filter that applies to JSON
+/// files named package.json:
 ///
 /// { language: 'typescript', scheme: 'file' }
 /// { language: 'json', pattern: '**/package.json' }
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
-pub struct DocumentFilter {
+pub struct TextDocumentFilter {
     /// A language id, like `typescript`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
@@ -1228,7 +1252,59 @@ pub struct DocumentFilter {
 
     /// A glob pattern, like `*.{ts,js}`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pattern: Option<String>,
+    pub pattern: Option<GlobPattern>,
+}
+
+/// A notebook cell text document filter denotes a cell text document by properties of the
+/// containing notebook and the cell language.
+///
+/// @since 3.17.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotebookCellTextDocumentFilter {
+    /// A filter that matches against the notebook containing the notebook cell.
+    /// `*` matches every notebook type.
+    pub notebook: Notebook,
+
+    /// A language id like `python`. `*` matches every language.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Notebook {
+    String(String),
+    NotebookDocumentFilter(NotebookDocumentFilter),
+}
+
+/// A notebook document filter denotes a notebook document through its type, scheme, or pattern.
+///
+/// @since 3.17.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum NotebookDocumentFilter {
+    ByType {
+        notebook_type: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scheme: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pattern: Option<GlobPattern>,
+    },
+    ByScheme {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        notebook_type: Option<String>,
+        scheme: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pattern: Option<GlobPattern>,
+    },
+    ByPattern {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        notebook_type: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scheme: Option<String>,
+        pattern: GlobPattern,
+    },
 }
 
 /// A document selector is the combination of one or many document filters.
@@ -2968,6 +3044,28 @@ mod tests {
     {
         let value = serde_json::from_str::<T>(json).unwrap();
         assert_eq!(&value, expected);
+    }
+
+    #[test]
+    fn document_selector_preserves_notebook_cell_filters() {
+        let selector: DocumentSelector = vec![
+            TextDocumentFilter {
+                language: Some("julia".into()),
+                scheme: Some("file".into()),
+                pattern: None,
+            }
+            .into(),
+            NotebookCellTextDocumentFilter {
+                notebook: Notebook::String("*".into()),
+                language: Some("julia".into()),
+            }
+            .into(),
+        ];
+
+        test_serialization(
+            &selector,
+            r#"[{"language":"julia","scheme":"file"},{"notebook":"*","language":"julia"}]"#,
+        );
     }
 
     #[test]
